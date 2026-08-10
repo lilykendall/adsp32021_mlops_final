@@ -41,10 +41,45 @@ The system pulls historical weather data for model training, tracks experiments,
 .
 ├── 01_data_ingestion.ipynb       # Stage 1: pulls NOAA CDO historical data and NWS live data,
 │                                  # writes bronze Delta tables (Databricks)
+├── test_ingestion_local.py       # Local, non-Databricks smoke test for the NOAA/NWS API
+│                                  # pulls — validates field coverage without dbutils/spark
+├── train_baseline.py             # Stage 1: baseline weather-quality classifier
+│                                  # (Logistic Regression), runs locally
+├── MODEL_CARD.md                 # Baseline model card — target definition, features,
+│                                  # metrics, caveats
 ├── FinalProjectProposal.html     # Original project proposal + data-pulling proof of concept
 ├── MLOps_Weather_Project_Task_Tracker.xlsx  # Task tracker across all four project phases
 └── README.md
 ```
+
+## Baseline Model
+
+The Stage 1 baseline (`train_baseline.py`) is a Logistic Regression classifier
+predicting whether a given day was "Bad" weather (`PRCP > 0.5mm`) from
+`AWND`, `TMAX`, `TMIN`. 
+
+Trained on Chicago Midway Airport (`GHCND:USW00014819`), 2020–2024,
+chronological 80/20 split:
+
+| Metric    | Value |
+|-----------|-------|
+| Accuracy  | 0.637 |
+| Precision | 0.402 |
+| Recall    | 0.680 |
+| F1        | 0.506 |
+| ROC-AUC   | 0.691 |
+
+Full rationale for the label definition, feature choices, and caveats is in
+`MODEL_CARD.md`. 
+
+To reproduce:
+```bash
+export NOAA_CDO_TOKEN="your_token_here"   # https://www.ncdc.noaa.gov/cdo-web/token
+pip install requests pandas scikit-learn
+python train_baseline.py
+```
+First run pulls and caches ~5 years of NOAA data (slow, rate-limited);
+subsequent runs reuse the cache. Use `--refresh` to force a fresh pull.
 
 ## Getting Started
 
@@ -61,6 +96,3 @@ The system pulls historical weather data for model training, tracks experiments,
 
 The notebook pulls NOAA historical daily data (GHCND) and a live NWS forecast/observation snapshot, runs basic sanity checks, and persists both as bronze Delta tables.
 
-## Project Status
-
-Currently in **Stage 1: Data Ingestion & Baselines**. Preprocessing, automated pipelines, MLflow tracking, deployment, and monitoring are planned for subsequent stages — see `MLOps_Weather_Project_Task_Tracker.xlsx` for the full task breakdown and status.
