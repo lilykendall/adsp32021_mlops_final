@@ -2,7 +2,7 @@
 
 An end-to-end MLOps pipeline that predicts weather conditions (e.g. bad weather / rain) from historical and live weather data, built for the ADSP 32021 MLOps final project.
 
-**Team:** Gabe Horas, Noah Ahmad, Lily Kendall, Payton Stewart, Diego
+**Team:** Gabe Horas, Noah Ahmad, Lily Kendall, Payton Stewart, Diego Begin
 
 ## Project Overview
 
