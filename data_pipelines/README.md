@@ -63,11 +63,8 @@ purposes; `01`'s behaviour is unchanged.
 incremental updates and will fail fast with a clear message if the bronze table
 doesn't exist yet.
 
-The NOAA token is read from a Databricks secret scope. Note the notebook currently
-uses scope `mlo` / key `WEATHER_API_KEY`, while the root `README.md` documents scope
-`weather-mlops` / key `noaa_cdo_token`. Both are parameters here; confirm which one
-actually exists before scheduling, since a wrong value fails at run time rather than
-at edit time.
+The NOAA token is read from Databricks secret scope `mlo`, key `WEATHER_API_KEY`. Both
+are widgets here, so a Job task can override them, but that pair is the one that exists.
 
 ## Scheduling
 
