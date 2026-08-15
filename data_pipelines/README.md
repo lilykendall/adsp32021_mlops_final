@@ -20,7 +20,8 @@ Anything that runs on a schedule lives here.
   cannot drift apart.
 - `00_explore_noaa_catalog.ipynb` — read-only scratch notebook for choosing the station
   and the datatype contract. Measures how densely each datatype is actually populated
-  over a sample window and emits the exact `datatypes` string to adopt.
+  over a sample window, compares candidate stations on a station × datatype matrix, and
+  emits the exact `datatypes` string to adopt.
 - `10_ingest_nightly.ipynb` — nightly bronze refresh.
 
 Run `00_explore` before freezing anything; `10_ingest_nightly` depends on the contract it
