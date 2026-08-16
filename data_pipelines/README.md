@@ -23,6 +23,26 @@ Anything that runs on a schedule lives here.
   over a sample window, compares candidate stations on a station × datatype matrix, and
   emits the exact `datatypes` string to adopt.
 - `10_ingest_nightly.ipynb` — nightly bronze refresh.
+- `11_features_nightly.ipynb` — builds `weather_daily_v3`. Runs after `10`.
+
+## v3: wide, and why
+
+v1/v2 are long — one row per station-day, Midway only. v3 is wide: one row per *date*, with
+other stations pivoted into IATA-prefixed columns (`RFD_PRCP_lag1`). That shape is what makes
+upstream signal usable, since Midwest systems track west to east and a long table can't
+express "Rockford yesterday" without a self-join.
+
+`station` changes meaning in v3. In v1/v2 it identifies who measured the row; in v3 every row
+is a prediction *for* Midway, so it's a constant. It's kept only so v3 shares a primary-key
+shape with v1/v2 and `03`'s `FeatureLookup` needs no structural change.
+
+The feature scope is an explicit `FEATURE_SPEC` dict at the top of the notebook rather than
+logic buried in the pivot — 11 stations × 12 datatypes is 132 columns before a single lag,
+against roughly 475 minority-class events, so what gets included is a decision that belongs in
+a diff. Current scope yields 44 features, about 11 events each.
+
+v3 is also the first table written **without** a `DROP` — created once, overwritten after — so
+its Delta history is real and `DESCRIBE HISTORY` / `VERSION AS OF` actually mean something.
 
 Run `00_explore` before freezing anything; `10_ingest_nightly` depends on the contract it
 produces.
