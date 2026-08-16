@@ -17,7 +17,37 @@ NOAA_BASE_URL = "https://www.ncei.noaa.gov/cdo-web/api/v2"
 
 # The frozen bronze column contract. Kept here so the backfill and the nightly job
 # can't disagree about it.
-DEFAULT_DATATYPES = ("TMAX", "TMIN", "PRCP", "AWND")
+#
+# WT* are weather-type event flags, not measurements: NOAA writes 1 on days the
+# phenomenon occurred and writes nothing at all otherwise. A null means "did not happen",
+# not "missing". They therefore read as low-coverage columns, and downstream they must be
+# filled with 0 rather than dropped -- dropping nulls on WT03 would delete ~86% of rows.
+DEFAULT_DATATYPES = (
+    "AWND", "PRCP", "TMAX", "TMIN",
+    "WDF2", "WDF5", "WSF2", "WSF5",
+    "SNWD",
+    "WT01", "WT02", "WT03",
+)
+
+# Every station whose readings land in bronze. Midway is the prediction target; the rest
+# are context, weighted toward the west/north-west approach corridor since Midwest systems
+# track roughly west to east.
+DEFAULT_STATIONS = (
+    "GHCND:USW00014819",  # Chicago Midway                -- target
+    "GHCND:USW00094846",  # Chicago O'Hare
+    "GHCND:USW00004838",  # Chicago Executive (Palwaukee)
+    "GHCND:USW00014834",  # Joliet
+    "GHCND:USW00014839",  # Milwaukee Mitchell            -- N
+    "GHCND:USW00094908",  # Dubuque                       -- W
+    "GHCND:USW00014922",  # Minneapolis-St Paul           -- NW
+    "GHCND:USW00093819",  # Indianapolis International    -- SSE
+    "GHCND:USW00094815",  # Kalamazoo                     -- E
+    "GHCND:USW00014840",  # Muskegon                      -- ENE
+)
+
+# The station the model predicts for. v1/v2 features, the labels, and the model card are
+# all built on Midway, so anything comparing against those has to filter to it.
+PRIMARY_STATION = "GHCND:USW00014819"
 
 _MIN_REQUEST_INTERVAL = 0.25  # NOAA CDO caps requests at ~5/sec; stay comfortably under
 _MAX_RETRIES = 5
@@ -58,13 +88,24 @@ def _get_all(url, params, headers):
         offset += _PAGE_SIZE
 
 
-def get_stations(location_id, headers, datasetid="GHCND"):
-    """List GHCND stations for a NOAA location id (e.g. 'FIPS:17031' = Cook County)."""
-    return pd.DataFrame(_get_all(
-        f"{NOAA_BASE_URL}/stations",
-        {"locationid": location_id, "datasetid": datasetid},
-        headers,
-    ))
+def get_stations(location_id=None, headers=None, datasetid="GHCND", extent=None):
+    """List GHCND stations, scoped by NOAA location id and/or a lat/lon bounding box.
+
+    ``location_id`` takes a NOAA id such as 'FIPS:17031' (Cook County). ``extent`` takes
+    'minlat,minlon,maxlat,maxlon' and is the easier way to sweep several metros at once,
+    since it avoids looking up a FIPS code per county.
+    """
+    if headers is None:
+        raise ValueError("headers is required — build it with make_headers(token)")
+    if location_id is None and extent is None:
+        raise ValueError("pass location_id, extent, or both")
+
+    params = {"datasetid": datasetid}
+    if location_id:
+        params["locationid"] = location_id
+    if extent:
+        params["extent"] = extent
+    return pd.DataFrame(_get_all(f"{NOAA_BASE_URL}/stations", params, headers))
 
 
 def get_datatypes(headers, station_id=None, location_id=None, datasetid="GHCND"):
@@ -149,3 +190,39 @@ def to_wide(noaa_raw, datatypes=DEFAULT_DATATYPES):
     wide[list(datatypes)] = wide[list(datatypes)].astype("float64")
 
     return wide[columns].sort_values("date").reset_index(drop=True)
+
+
+def get_ghcnd_daily_multi(station_ids, start_date, end_date, headers,
+                          datatypes=DEFAULT_DATATYPES, skip_errors=False, progress=None):
+    """Fetch several stations and return one wide frame keyed (station, date).
+
+    Bronze is long in the station dimension -- more stations means more rows, not more
+    columns -- so the merge key ``(station, date)`` handles this unchanged.
+
+    ``skip_errors`` is for the scheduled job: one station being unavailable overnight
+    shouldn't cost the other nine, and MERGE simply leaves that station's rows alone
+    until the next run picks them up. The backfill leaves it False so a partial history
+    can't be written silently. ``progress`` is called as ``progress(station_id, n_rows)``
+    after each station.
+
+    Returns ``(frame, failures)`` where failures is a list of ``(station_id, message)``.
+    """
+    frames, failures = [], []
+
+    for station_id in station_ids:
+        try:
+            raw = get_ghcnd_daily(station_id, start_date, end_date, headers, datatypes)
+        except Exception as exc:
+            if not skip_errors:
+                raise
+            failures.append((station_id, f"{type(exc).__name__}: {exc}"))
+            continue
+
+        wide = to_wide(raw, datatypes=datatypes)
+        frames.append(wide)
+        if progress:
+            progress(station_id, len(wide))
+
+    combined = (pd.concat(frames, ignore_index=True) if frames
+                else to_wide(pd.DataFrame(), datatypes=datatypes))
+    return combined, failures

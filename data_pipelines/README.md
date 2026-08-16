@@ -46,11 +46,22 @@ it does mean if NOAA starts returning null for a datatype it previously reported
 the null overwrites the old value. NOAA is the system of record here, so this is the
 intended behaviour — worth knowing if a column ever goes unexpectedly sparse.
 
-**The station is pinned.** `01` picks a station dynamically (highest `datacoverage`
-among those spanning the date range). That's fine for a one-time backfill but unsafe
-on a schedule: if NOAA's station metadata shifts, a run could silently switch stations
-and splice a different location's readings into the same table. The nightly job takes
-`station_id` as an explicit parameter instead.
+**Stations are pinned, and bronze is long in the station dimension.** Both the backfill
+and the nightly job pull `noaa_client.DEFAULT_STATIONS` — ten first-order airport stations
+with Midway as the prediction target and the rest weighted toward the west/north-west
+approach corridor, since Midwest systems track roughly west to east. More stations means
+more *rows*, not more columns, so the `(station, date)` merge key is unaffected.
+
+The list lives in the module rather than in job parameters on purpose: the nightly `MERGE`
+requires bronze to match both the station list and the column contract, so changing either
+should be a reviewable code change, not a silently-edited job parameter. Both notebooks
+expose `station_ids` / `datatypes` widgets that fall back to the module when left blank.
+
+**Anything reading bronze must now filter by station.** `02_feature_store.ipynb` had no
+station filter — correct when bronze held one station, silently tenfold wrong once it holds
+ten. It now filters to `PRIMARY_STATION` so `weather_daily_v2`, `weather_labels`,
+`03_baseline_model.ipynb` and `drift_monitoring.py` keep exactly the shape they had. The
+other nine stations get used in v3, pivoted into wide columns.
 
 **NWS goes to its own table.** `01` writes `nws_forecast_snapshot` with
 `mode("overwrite")` — a point-in-time snapshot. The nightly job appends to
