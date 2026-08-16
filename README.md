@@ -88,8 +88,8 @@ subsequent runs reuse the cache. Use `--refresh` to force a fresh pull.
 1. Get a free NOAA CDO token: https://www.ncdc.noaa.gov/cdo-web/token
 2. Store it in a Databricks secret scope (never hardcode it in the notebook):
    ```bash
-   databricks secrets create-scope weather-mlops
-   databricks secrets put-secret weather-mlops noaa_cdo_token
+   databricks secrets create-scope mlo
+   databricks secrets put-secret mlo WEATHER_API_KEY
    ```
 3. Attach the notebook to a cluster/SQL warehouse with Unity Catalog access (needed for the Delta table writes in section 4), and update the `catalog` widget if you're not using `main`.
 4. Adjust the remaining notebook widgets as needed: `location_id`, `start_date`/`end_date`, `lat`/`lon`, `nws_contact_email`, and `schema`.

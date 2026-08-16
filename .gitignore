@@ -1,2 +1,5 @@
 noaa_historical_daily_cache.csv
 *.csv
+
+__pycache__/
+*.pyc
