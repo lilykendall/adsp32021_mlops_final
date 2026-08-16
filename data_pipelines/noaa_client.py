@@ -36,6 +36,7 @@ DEFAULT_STATIONS = (
     "GHCND:USW00014819",  # Chicago Midway                -- target
     "GHCND:USW00094846",  # Chicago O'Hare
     "GHCND:USW00004838",  # Chicago Executive (Palwaukee)
+    "GHCND:USW00014834",  # Joliet
     "GHCND:USW00094822",  # Rockford
     "GHCND:USW00014839",  # Milwaukee Mitchell            -- N
     "GHCND:USW00094908",  # Dubuque                       -- W
