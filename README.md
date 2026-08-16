@@ -2,7 +2,7 @@
 
 An end-to-end MLOps pipeline that predicts weather conditions (e.g. bad weather / rain) from historical and live weather data, built for the ADSP 32021 MLOps final project.
 
-**Team:** Gabe Horas, Noah Ahmad, Lily Kendall, Payton Stewart, Diego Begin
+**Team:** Gabe Horas, Noah Ahmad, Lily Kendall, Payton Stewart, Diego
 
 ## Project Overview
 
@@ -55,22 +55,27 @@ The system pulls historical weather data for model training, tracks experiments,
 ## Baseline Model
 
 The Stage 1 baseline (`train_baseline.py`) is a Logistic Regression classifier
-predicting whether a given day was "Bad" weather (`PRCP > 0.5mm`) from
-`AWND`, `TMAX`, `TMIN`. 
+predicting whether **tomorrow** will be "Bad" weather (`PRCP > 0.5mm`) from
+**today's** `AWND`, `TMAX`, `TMIN` — matching the target definition used by
+the Databricks v2 model (`03_baseline_model.ipynb`), so the two are
+comparable.
 
 Trained on Chicago Midway Airport (`GHCND:USW00014819`), 2020–2024,
 chronological 80/20 split:
 
 | Metric    | Value |
 |-----------|-------|
-| Accuracy  | 0.637 |
-| Precision | 0.402 |
-| Recall    | 0.680 |
-| F1        | 0.506 |
-| ROC-AUC   | 0.691 |
+| Accuracy  | 0.503 |
+| Precision | 0.284 |
+| Recall    | 0.540 |
+| F1        | 0.372 |
+| ROC-AUC   | 0.527 |
 
-Full rationale for the label definition, feature choices, and caveats is in
-`MODEL_CARD.md`. 
+ROC-AUC near 0.5 shows today's temperature/wind alone barely predict
+tomorrow's rain — this baseline was originally same-day (ROC-AUC 0.691),
+but that was mostly detecting current rain, not forecasting it. The weak
+next-day signal here is likely why the Databricks v2 model uses lagged
+precipitation features instead. Full rationale in `MODEL_CARD.md`.
 
 To reproduce:
 ```bash

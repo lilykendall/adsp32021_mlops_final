@@ -1,10 +1,12 @@
 """
-Baseline model — weather quality classifier (Logistic Regression).
+Baseline model — next-day weather quality classifier (Logistic Regression).
 
 Pulls the full 2020-2024 NOAA historical daily record for the configured
 station, derives a "Bad weather" label from PRCP (validated as the most
 reliable available signal for this station — see notebook/README notes),
-trains a Logistic Regression baseline, and prints evaluation metrics.
+and predicts TOMORROW's label from TODAY's features -- matching the
+Databricks v2 model's target definition (see build_dataset() below for why).
+Trains a Logistic Regression baseline and prints evaluation metrics.
 
 No MLflow / no Delta / no Databricks dependency — pure local script.
 
@@ -64,7 +66,7 @@ PRCP_BAD_THRESHOLD_MM = 0.5
 # (WT01/WT03/WT08, wind gust, etc.) are candidates for the next iteration,
 # not this baseline.
 FEATURE_COLUMNS = ["AWND", "TMAX", "TMIN"]
-TARGET_COLUMN = "Bad"
+TARGET_COLUMN = "Bad"  # represents TOMORROW's label -- see build_dataset()
 
 NOAA_TOKEN = os.environ.get("NOAA_CDO_TOKEN")
 NOAA_BASE_URL = "https://www.ncei.noaa.gov/cdo-web/api/v2"
@@ -194,22 +196,43 @@ def pull_noaa_daily(refresh=False):
 # Label + features
 # ---------------------------------------------------------------------------
 def build_dataset(noaa_daily):
+    """Builds features + a NEXT-DAY ("t+1") label, matching the Databricks
+    v2 model's target definition (see 02_feature_store.ipynb / 03_baseline_model.ipynb,
+    which use a `lead()` window function for the same shift). Originally this
+    baseline predicted same-day weather from same-day features, which isn't
+    real forecasting -- you don't need a model to tell you it's raining if
+    you already know today's PRCP. Predicting tomorrow from today's readings
+    is an honest forecasting task, and puts this baseline on the same target
+    as the model it's meant to be a floor for.
+    """
     df = noaa_daily.copy()
 
     if "PRCP" not in df.columns:
         sys.exit("PRCP column missing from pulled data — cannot derive the label.")
 
-    df[TARGET_COLUMN] = (df["PRCP"] > PRCP_BAD_THRESHOLD_MM).astype(int)
+    df = df.sort_values("date").reset_index(drop=True)
+
+    # Bad_today is well-defined wherever PRCP is present. The label used for
+    # training/eval is TOMORROW's Bad_today value, via shift(-1) -- the same
+    # row-order shift the Databricks feature store applies with lead(). Like
+    # that implementation, this shifts by row position (next available row
+    # in the sorted series), not strictly by calendar date, so a missing day
+    # would make "tomorrow" mean "next day we have data for" -- acceptable
+    # here since GHCND daily data for this station has no such gaps in range.
+    bad_today = (df["PRCP"] > PRCP_BAD_THRESHOLD_MM).astype(int)
+    df[TARGET_COLUMN] = bad_today.shift(-1)
 
     missing_features = [c for c in FEATURE_COLUMNS if c not in df.columns]
     if missing_features:
         sys.exit(f"Missing expected feature columns: {missing_features}")
 
     before = len(df)
+    # dropna also removes the final row, which has no "tomorrow" to predict.
     df = df.dropna(subset=FEATURE_COLUMNS + [TARGET_COLUMN])
+    df[TARGET_COLUMN] = df[TARGET_COLUMN].astype(int)
     dropped = before - len(df)
     if dropped:
-        print(f"Dropped {dropped} rows with missing {FEATURE_COLUMNS} (of {before})")
+        print(f"Dropped {dropped} rows with missing {FEATURE_COLUMNS} or no next-day label (of {before})")
 
     return df.sort_values("date").reset_index(drop=True)
 
@@ -275,7 +298,7 @@ def main():
     print("Baseline results — Logistic Regression")
     print("=" * 70)
     print(f"Features: {FEATURE_COLUMNS}")
-    print(f"Label rule: PRCP > {PRCP_BAD_THRESHOLD_MM}mm")
+    print(f"Label rule: PRCP > {PRCP_BAD_THRESHOLD_MM}mm, predicted for the NEXT day (t+1)")
     print()
     print(f"Accuracy:  {accuracy_score(y_test, y_pred):.3f}")
     print(f"Precision: {precision_score(y_test, y_pred, zero_division=0):.3f}")
