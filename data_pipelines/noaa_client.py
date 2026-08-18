@@ -109,6 +109,22 @@ def get_stations(location_id=None, headers=None, datasetid="GHCND", extent=None)
     return pd.DataFrame(_get_all(f"{NOAA_BASE_URL}/stations", params, headers))
 
 
+def get_station_names(station_ids, headers):
+    """Map GHCND station ids (e.g. DEFAULT_STATIONS) to NOAA's official station names.
+
+    ``get_stations`` above only filters by location/extent, not by a specific id list, and
+    NOAA CDO has no batch-by-id lookup -- so this hits GET /stations/{id} once per id via
+    the same retry/backoff ``_get`` uses elsewhere. Fine for a handful of ids (DEFAULT_STATIONS
+    is 11); for a large list, page through ``get_stations`` and filter instead.
+
+    Returns {station_id: name}.
+    """
+    return {
+        station_id: _get(f"{NOAA_BASE_URL}/stations/{station_id}", {}, headers).json()["name"]
+        for station_id in station_ids
+    }
+
+
 def get_datatypes(headers, station_id=None, location_id=None, datasetid="GHCND"):
     """List the datatypes NOAA publishes, optionally narrowed to a station or location.
 
