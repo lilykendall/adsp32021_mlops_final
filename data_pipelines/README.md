@@ -110,6 +110,5 @@ task parameters. Suggested settings:
   enough to catch a hung request.
 - **Notifications:** on failure, so a silent nightly break doesn't go unnoticed.
 
-`dags/weather_pipeline_dag.py` (repo root) is that Airflow DAG — it points a
-`DatabricksRunNowOperator` at this job (then the `11_features_nightly` job)
-rather than reimplementing the pull, so execution stays on Databricks.
+Chain this job to `11_features_nightly.ipynb`'s job (task dependency, not a
+separate Airflow DAG) so features only build after ingest succeeds.

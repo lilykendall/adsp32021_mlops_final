@@ -23,9 +23,3 @@ pyspark>=3.5
 mlflow>=2.11
 databricks-feature-engineering>=0.6
 flaml>=2.1
-
-# Airflow orchestrator (dags/weather_pipeline_dag.py) runs on its own Airflow
-# instance, not in this project's dev environment -- listed here for the
-# dependency set this file documents, not something to install locally.
-# apache-airflow>=2.9
-# apache-airflow-providers-databricks>=6.0

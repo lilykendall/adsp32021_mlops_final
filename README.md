@@ -9,7 +9,7 @@ An end-to-end MLOps pipeline that predicts weather conditions (e.g. bad weather 
 The system pulls historical weather data for model training, tracks experiments, deploys a champion model as a live inference API, and monitors that model in production for drift. It's organized into four stages:
 
 1. **Data Ingestion & Baselines** — pull historical + live weather data, define the target variable and evaluation metric, and establish a baseline model.
-2. **Pipeline Automation & Experiment Tracking** — automate preprocessing/training (Airflow), version data/features, track experiments (MLflow), and register the winning model to a model registry.
+2. **Pipeline Automation & Experiment Tracking** — automate preprocessing/training (Databricks Jobs), version data/features, track experiments (MLflow), and register the winning model to a model registry.
 3. **Containerization & Deployment** — deploy the registered model via Databricks Model Serving for real-time predictions.
 4. **Production Monitoring & Drift Simulation** — monitor the deployed model, simulate data drift, verify the monitoring dashboard catches it, and set up automated evaluation/alerting.
 
@@ -31,7 +31,7 @@ The system pulls historical weather data for model training, tracks experiments,
 
 - **MLflow** for experiment tracking (params, metrics, artifacts) and the model registry, run on Databricks where available; otherwise prototyped with custom champion/candidate grading code.
 - **DVC + Git** for data versioning and feature storage.
-- **Airflow** for pipeline automation (preprocessing → training).
+- **Databricks Jobs** for pipeline automation (preprocessing → training).
 - **Databricks Model Serving** for serving the registered model.
 - **EvidentlyAI / Prometheus + Grafana** (or custom code) for production monitoring and drift detection.
 
@@ -57,7 +57,6 @@ The system pulls historical weather data for model training, tracks experiments,
 │                                           # (Logistic Regression), runs without Databricks
 ├── data_pipelines/                         # Scheduled, incremental counterparts to the root notebooks
 │                                           # (nightly ingestion + v3 wide feature build) — see its own README
-├── dags/weather_pipeline_dag.py            # Stage 2: Airflow DAG triggering the nightly Databricks jobs
 ├── MODEL_CARD.md                           # Baseline model card — target definition, features,
 │                                           # metrics, caveats
 ├── FinalProjectProposal.html               # Original project proposal + data-pulling proof of concept
@@ -73,16 +72,15 @@ trained in `05_automl.ipynb` on the full v3 feature set.
 baseline validation and drift stress-testing — no code in this repo
 provisions that endpoint, it's created manually in the Databricks UI.
 
-## Orchestration (Airflow)
+## Orchestration (Databricks Jobs)
 
-`dags/weather_pipeline_dag.py` is an Airflow DAG that triggers the two nightly
-Databricks jobs (`data_pipelines/10_ingest_nightly.ipynb`, then
-`11_features_nightly.ipynb`) in order, on a daily schedule, via
-`DatabricksRunNowOperator` — execution stays on Databricks; the DAG only
-owns scheduling/ordering/retries. See the docstring at the top of that file
-for the one-time setup (install `apache-airflow-providers-databricks`,
-create the `databricks_default` connection, create the two underlying
-Databricks Jobs, set their job IDs as Airflow Variables).
+The nightly pipeline is orchestrated as a Databricks Job chaining
+`data_pipelines/10_ingest_nightly.ipynb` → `11_features_nightly.ipynb`, on a
+daily schedule — see the Scheduling section of `data_pipelines/README.md`
+for the suggested settings (retries, timeout, failure notifications). This
+satisfies the "automated orchestrator" requirement as an equivalent workflow
+platform to Airflow/Prefect, without adding a second orchestrator on top of
+infrastructure the pipeline doesn't otherwise need.
 
 ## Baseline Model
 
