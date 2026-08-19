@@ -3,7 +3,11 @@ Local test script for the NOAA + NWS data ingestion logic.
 
 Mirrors the API-pulling logic in 01_data_ingestion.ipynb, but with every
 Databricks-specific piece removed so it runs in a plain local Python
-environment:
+environment. Pulls Chicago Midway (GHCND:USW00014819), pinned via
+data_pipelines.noaa_client.PRIMARY_STATION -- 01 pulls the full pinned
+DEFAULT_STATIONS list, but a single station is enough to validate that the
+pull/pagination/reshape mechanics work, and pinning it avoids ever silently
+testing a different station than the rest of the pipeline is built on:
 
   - dbutils.widgets.*      -> plain variables in the CONFIG block below
   - dbutils.secrets.get()  -> NOAA_CDO_TOKEN environment variable
@@ -26,12 +30,13 @@ from datetime import datetime, timedelta
 import pandas as pd
 import requests
 
+from data_pipelines.noaa_client import PRIMARY_STATION
+
 pd.set_option("display.max_columns", None)
 
 # ---------------------------------------------------------------------------
 # CONFIG (equivalent to the notebook widgets in Section 0)
 # ---------------------------------------------------------------------------
-LOCATION_ID = "FIPS:17031"          # Cook County, IL (Chicago) — override as needed
 START_DATE = "2025-07-01"           # short window for a quick local test
 END_DATE = "2025-07-31"
 LAT, LON = 41.85, -87.65            # NWS lookup point (Chicago-area)
@@ -84,14 +89,6 @@ def _noaa_get(url, params):
         return resp
     resp.raise_for_status()
     return resp
-
-
-def get_stations(location_id, datasetid="GHCND", limit=1000):
-    resp = _noaa_get(
-        f"{NOAA_BASE_URL}/stations",
-        params={"locationid": location_id, "datasetid": datasetid, "limit": limit},
-    )
-    return pd.DataFrame(resp.json().get("results", []))
 
 
 def get_supported_datatypes(station_id, datasetid="GHCND", limit=1000):
@@ -169,25 +166,10 @@ def get_nws_latest_observation(stations_url):
 # ---------------------------------------------------------------------------
 def main():
     print("=" * 70)
-    print("1. NOAA CDO — finding a station")
+    print("1. NOAA CDO — station")
     print("=" * 70)
-    stations_df = get_stations(LOCATION_ID)
-    if stations_df.empty:
-        sys.exit(f"No stations found for location_id={LOCATION_ID}")
-
-    candidates = stations_df[
-        (stations_df["mindate"] <= START_DATE) & (stations_df["maxdate"] >= END_DATE)
-    ].sort_values("datacoverage", ascending=False)
-
-    if candidates.empty:
-        sys.exit(
-            f"No station covers {START_DATE}..{END_DATE}. "
-            f"Inspect stations_df[['id','name','mindate','maxdate']] and adjust "
-            f"LOCATION_ID or the date range."
-        )
-
-    station_id = candidates.iloc[0]["id"]
-    print(f"Using station: {station_id} ({candidates.iloc[0]['name']})\n")
+    station_id = PRIMARY_STATION
+    print(f"Using station: {station_id} (Chicago Midway, pinned -- matches 01_data_ingestion.ipynb)\n")
 
     print("=" * 70)
     print("2. NOAA CDO — checking datatype coverage for this station")

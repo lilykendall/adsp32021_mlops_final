@@ -1,12 +1,16 @@
 """
 Baseline model — next-day weather quality classifier (Logistic Regression).
 
-Pulls the full 2020-2024 NOAA historical daily record for the configured
-station, derives a "Bad weather" label from PRCP (validated as the most
-reliable available signal for this station — see notebook/README notes),
-and predicts TOMORROW's label from TODAY's features -- matching the
-Databricks v2 model's target definition (see build_dataset() below for why).
-Trains a Logistic Regression baseline and prints evaluation metrics.
+Pulls the full 2020-2024 NOAA historical daily record for Chicago Midway
+(GHCND:USW00014819) -- the same single station the Databricks v1/v2 feature
+tables and MODEL_CARD.md are built on, pinned via
+data_pipelines.noaa_client.PRIMARY_STATION rather than re-discovered here, so
+this script can't silently drift onto a different station. Derives a "Bad
+weather" label from PRCP (validated as the most reliable available signal
+for this station — see notebook/README notes), and predicts TOMORROW's
+label from TODAY's features -- matching the Databricks v2 model's target
+definition (see build_dataset() below for why). Trains a Logistic Regression
+baseline and prints evaluation metrics.
 
 No MLflow / no Delta / no Databricks dependency — pure local script.
 
@@ -32,6 +36,8 @@ from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 import requests
+
+from data_pipelines.noaa_client import PRIMARY_STATION
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
@@ -50,7 +56,6 @@ pd.set_option("display.max_columns", None)
 # ---------------------------------------------------------------------------
 # CONFIG
 # ---------------------------------------------------------------------------
-LOCATION_ID = "FIPS:17031"      # Cook County, IL (Chicago) — override as needed
 START_DATE = "2020-01-01"
 END_DATE = "2024-12-31"
 
@@ -99,12 +104,6 @@ def _noaa_get(headers, url, params):
         return resp
     resp.raise_for_status()
     return resp
-
-
-def get_stations(headers, location_id, datasetid="GHCND", limit=1000):
-    resp = _noaa_get(headers, f"{NOAA_BASE_URL}/stations",
-                      {"locationid": location_id, "datasetid": datasetid, "limit": limit})
-    return pd.DataFrame(resp.json().get("results", []))
 
 
 def get_supported_datatypes(headers, station_id, datasetid="GHCND", limit=1000):
@@ -160,15 +159,8 @@ def pull_noaa_daily(refresh=False):
         )
     headers = {"token": NOAA_TOKEN}
 
-    print("Finding station...")
-    stations_df = get_stations(headers, LOCATION_ID)
-    candidates = stations_df[
-        (stations_df["mindate"] <= START_DATE) & (stations_df["maxdate"] >= END_DATE)
-    ].sort_values("datacoverage", ascending=False)
-    if candidates.empty:
-        sys.exit(f"No station covers {START_DATE}..{END_DATE} for {LOCATION_ID}")
-    station_id = candidates.iloc[0]["id"]
-    print(f"Using station: {station_id} ({candidates.iloc[0]['name']})")
+    station_id = PRIMARY_STATION
+    print(f"Station: {station_id} (Chicago Midway, pinned -- matches v1/v2 and MODEL_CARD.md)")
 
     print("Checking datatype coverage...")
     available_df = get_supported_datatypes(headers, station_id)
