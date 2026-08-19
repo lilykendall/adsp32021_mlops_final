@@ -8,8 +8,12 @@
 - **Version**: v0.2 (baseline, trained locally — target changed from
   same-day to next-day prediction; see Training Data below)
 - **Framework**: scikit-learn (`sklearn.linear_model.LogisticRegression`)
-- **Tracking**: Not yet tracked — trained and evaluated locally. MLflow
-  integration (Databricks-hosted) planned for Stage 2.
+- **Tracking**: This local artifact isn't logged to MLflow — it's a
+  pre-Databricks smoke test, trained and evaluated locally by design (see
+  README's "Baseline Model" section). The Databricks-hosted models
+  (`03_baseline_model.ipynb`, `05_automl.ipynb`) are tracked in MLflow with
+  Unity Catalog model registration and semantic-version tags; this baseline
+  isn't one of them, and isn't intended to be registered.
 
 ## Intended Use
 
@@ -85,8 +89,11 @@ features, there's less for the class weighting to lean on.
 
 ## Practical Considerations
 
-- Weather condition labels derived via keyword matching on
-  `textDescription` may not generalize well if the upstream API changes its
-  vocabulary 
+- `train_baseline.py` caches its NOAA pull to a local CSV and reuses it on
+  every subsequent run unless `--refresh` is passed. NOAA revises
+  already-published days after the fact (see `data_pipelines/README.md`'s
+  design notes), so a stale cache can silently diverge from NOAA's current
+  values — re-run with `--refresh` before trusting these metrics as
+  current.
 
 

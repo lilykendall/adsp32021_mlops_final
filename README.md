@@ -72,6 +72,12 @@ trained in `05_automl.ipynb` on the full v3 feature set.
 baseline validation and drift stress-testing — no code in this repo
 provisions that endpoint, it's created manually in the Databricks UI.
 
+A meaningful part of this project's infrastructure — Unity Catalog objects,
+registered models, serving endpoints, secrets — exists only in the
+Databricks workspace and isn't visible from this repo's code. See
+[`Docs/DATABRICKS_INFRASTRUCTURE.md`](Docs/DATABRICKS_INFRASTRUCTURE.md)
+for a snapshot of that state.
+
 ## Orchestration (Databricks Jobs)
 
 The nightly pipeline is orchestrated as a Databricks Job chaining
