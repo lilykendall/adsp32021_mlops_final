@@ -25,7 +25,7 @@ The system pulls historical weather data for model training, tracks experiments,
 |---|---|---|
 | [NOAA CDO (Climate Data Online)](https://www.ncdc.noaa.gov/cdo-web/token) — GHCND daily station data | Historical training/test data | Free API token |
 | [api.weather.gov](https://www.weather.gov/documentation/services-web-api) (NWS) | Live observations & forecasts for production/monitoring and drift simulation | None (descriptive `User-Agent` required) |
-| [Open-Meteo](https://open-meteo.com/) archive & forecast APIs | Early proof-of-concept data pulls (see `FinalProjectProposal.html`) | None |
+| [Open-Meteo](https://open-meteo.com/) archive & forecast APIs | Early proof-of-concept data pulls (see `Docs/FinalProjectProposal.html`) | None |
 
 ## Tooling
 
@@ -39,30 +39,30 @@ The system pulls historical weather data for model training, tracks experiments,
 
 ```
 .
-├── 00_data_ingestion.ipynb                 # Stage 1: pulls NOAA CDO historical data and NWS live data,
-│                                           # writes bronze Delta tables (Databricks)
-├── 01_eda.ipynb                            # Stage 1: exploratory data analysis on the bronze tables
-├── 02_feature_store.ipynb                  # Stage 2: builds the v2 (Midway-only) feature table
-├── 03_baseline_model.ipynb                 # Stage 2: Databricks baseline model, MLflow tracking,
-│                                           # Unity Catalog model registration + semantic-version tags
-├── 04_drift_simulation.ipynb               # Stage 4: corruption scenarios, Evidently drift reports,
-│                                           # live endpoint stress test, alerting/decision logic
-├── 05_automl.ipynb                         # Stage 2: FLAML AutoML search over the v3 feature set,
-│                                           # logged to MLflow and registered to the model registry
-├── drift_monitoring.py                     # Stage 4: reusable Evidently drift-report/summary functions,
-│                                           # runnable locally against an exported reference CSV
-├── test_ingestion_local.py                 # Local, non-Databricks smoke test for the NOAA/NWS API
-│                                           # pulls — validates field coverage without dbutils/spark
-├── train_baseline.py                       # Stage 1: local baseline weather-quality classifier
-│                                           # (Logistic Regression), runs without Databricks
-├── data_pipelines/                         # Scheduled, incremental counterparts to the root notebooks
-│                                           # (nightly ingestion + v3 wide feature build) — see its own README
-├── MODEL_CARD.md                           # Baseline model card — target definition, features,
-│                                           # metrics, caveats
-├── FinalProjectProposal.html               # Original project proposal + data-pulling proof of concept
-├── MLOps_Weather_Project_Task_Tracker.xlsx # Task tracker across all four project phases
-├── environment.yaml                        # Conda environment spec (local scripts + notebook tooling)
-├── requirements.txt                        # Pip dependency list, with Databricks-only deps documented
+├── 00_data_ingestion.ipynb   # Stage 1: pulls NOAA CDO historical data and NWS live data,
+│                             # writes bronze Delta tables (Databricks)
+├── 01_eda.ipynb              # Stage 1: exploratory data analysis on the bronze tables
+├── 02_feature_store.ipynb    # Stage 2: builds the v2 (Midway-only) feature table
+├── 03_baseline_model.ipynb   # Stage 2: Databricks baseline model, MLflow tracking,
+│                             # Unity Catalog model registration + semantic-version tags
+├── 04_drift_simulation.ipynb # Stage 4: corruption scenarios, Evidently drift reports,
+│                             # live endpoint stress test, alerting/decision logic
+├── 05_automl.ipynb           # Stage 2: FLAML AutoML search over the v3 feature set,
+│                             # logged to MLflow and registered to the model registry
+├── drift_monitoring.py       # Stage 4: reusable Evidently drift-report/summary functions,
+│                             # runnable locally against an exported reference CSV
+├── test_ingestion_local.py   # Local, non-Databricks smoke test for the NOAA/NWS API
+│                             # pulls — validates field coverage without dbutils/spark
+├── train_baseline.py         # Stage 1: local baseline weather-quality classifier
+│                             # (Logistic Regression), runs without Databricks
+├── data_pipelines/           # Scheduled, incremental counterparts to the root notebooks
+│                             # (nightly ingestion + v3 wide feature build) — see its own README
+├── Docs/                     # Project proposal, requirements doc, task tracker,
+│                             # and presentation deck
+├── MODEL_CARD.md             # Baseline model card — target definition, features,
+│                             # metrics, caveats
+├── environment.yaml          # Conda environment spec (local scripts + notebook tooling)
+├── requirements.txt          # Pip dependency list, with Databricks-only deps documented
 └── README.md
 ```
 
