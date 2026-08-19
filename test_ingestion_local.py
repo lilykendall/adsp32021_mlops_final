@@ -1,10 +1,10 @@
 """
 Local test script for the NOAA + NWS data ingestion logic.
 
-Mirrors the API-pulling logic in 01_data_ingestion.ipynb, but with every
+Mirrors the API-pulling logic in 00_data_ingestion.ipynb, but with every
 Databricks-specific piece removed so it runs in a plain local Python
 environment. Pulls Chicago Midway (GHCND:USW00014819), pinned via
-data_pipelines.noaa_client.PRIMARY_STATION -- 01 pulls the full pinned
+data_pipelines.noaa_client.PRIMARY_STATION -- 00 pulls the full pinned
 DEFAULT_STATIONS list, but a single station is enough to validate that the
 pull/pagination/reshape mechanics work, and pinning it avoids ever silently
 testing a different station than the rest of the pipeline is built on:
@@ -169,7 +169,7 @@ def main():
     print("1. NOAA CDO — station")
     print("=" * 70)
     station_id = PRIMARY_STATION
-    print(f"Using station: {station_id} (Chicago Midway, pinned -- matches 01_data_ingestion.ipynb)\n")
+    print(f"Using station: {station_id} (Chicago Midway, pinned -- matches 00_data_ingestion.ipynb)\n")
 
     print("=" * 70)
     print("2. NOAA CDO — checking datatype coverage for this station")

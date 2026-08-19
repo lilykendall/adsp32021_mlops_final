@@ -10,7 +10,7 @@ The system pulls historical weather data for model training, tracks experiments,
 
 1. **Data Ingestion & Baselines** — pull historical + live weather data, define the target variable and evaluation metric, and establish a baseline model.
 2. **Pipeline Automation & Experiment Tracking** — automate preprocessing/training (Airflow), version data/features, track experiments (MLflow), and register the winning model to a model registry.
-3. **Containerization & Deployment** — wrap the registered model in a FastAPI service, containerize it with Docker, and deploy it for real-time predictions.
+3. **Containerization & Deployment** — deploy the registered model via Databricks Model Serving for real-time predictions.
 4. **Production Monitoring & Drift Simulation** — monitor the deployed model, simulate data drift, verify the monitoring dashboard catches it, and set up automated evaluation/alerting.
 
 ## Architecture
@@ -32,25 +32,57 @@ The system pulls historical weather data for model training, tracks experiments,
 - **MLflow** for experiment tracking (params, metrics, artifacts) and the model registry, run on Databricks where available; otherwise prototyped with custom champion/candidate grading code.
 - **DVC + Git** for data versioning and feature storage.
 - **Airflow** for pipeline automation (preprocessing → training).
-- **FastAPI + Docker** for serving the registered model.
+- **Databricks Model Serving** for serving the registered model.
 - **EvidentlyAI / Prometheus + Grafana** (or custom code) for production monitoring and drift detection.
 
 ## Repository Structure
 
 ```
 .
-├── 01_data_ingestion.ipynb       # Stage 1: pulls NOAA CDO historical data and NWS live data,
-│                                  # writes bronze Delta tables (Databricks)
-├── test_ingestion_local.py       # Local, non-Databricks smoke test for the NOAA/NWS API
-│                                  # pulls — validates field coverage without dbutils/spark
-├── train_baseline.py             # Stage 1: baseline weather-quality classifier
-│                                  # (Logistic Regression), runs locally
-├── MODEL_CARD.md                 # Baseline model card — target definition, features,
-│                                  # metrics, caveats
-├── FinalProjectProposal.html     # Original project proposal + data-pulling proof of concept
-├── MLOps_Weather_Project_Task_Tracker.xlsx  # Task tracker across all four project phases
+├── 00_data_ingestion.ipynb                 # Stage 1: pulls NOAA CDO historical data and NWS live data,
+│                                           # writes bronze Delta tables (Databricks)
+├── 01_eda.ipynb                            # Stage 1: exploratory data analysis on the bronze tables
+├── 02_feature_store.ipynb                  # Stage 2: builds the v2 (Midway-only) feature table
+├── 03_baseline_model.ipynb                 # Stage 2: Databricks baseline model, MLflow tracking,
+│                                           # Unity Catalog model registration + semantic-version tags
+├── 04_drift_simulation.ipynb               # Stage 4: corruption scenarios, Evidently drift reports,
+│                                           # live endpoint stress test, alerting/decision logic
+├── 05_automl.ipynb                         # Stage 2: FLAML AutoML search over the v3 feature set,
+│                                           # logged to MLflow and registered to the model registry
+├── drift_monitoring.py                     # Stage 4: reusable Evidently drift-report/summary functions,
+│                                           # runnable locally against an exported reference CSV
+├── test_ingestion_local.py                 # Local, non-Databricks smoke test for the NOAA/NWS API
+│                                           # pulls — validates field coverage without dbutils/spark
+├── train_baseline.py                       # Stage 1: local baseline weather-quality classifier
+│                                           # (Logistic Regression), runs without Databricks
+├── data_pipelines/                         # Scheduled, incremental counterparts to the root notebooks
+│                                           # (nightly ingestion + v3 wide feature build) — see its own README
+├── dags/weather_pipeline_dag.py            # Stage 2: Airflow DAG triggering the nightly Databricks jobs
+├── MODEL_CARD.md                           # Baseline model card — target definition, features,
+│                                           # metrics, caveats
+├── FinalProjectProposal.html               # Original project proposal + data-pulling proof of concept
+├── MLOps_Weather_Project_Task_Tracker.xlsx # Task tracker across all four project phases
+├── environment.yaml                        # Conda environment spec (local scripts + notebook tooling)
+├── requirements.txt                        # Pip dependency list, with Databricks-only deps documented
 └── README.md
 ```
+
+Deployment is **Databricks Model Serving**, hosting the AutoML champion
+trained in `05_automl.ipynb` on the full v3 feature set.
+`04_drift_simulation.ipynb` (Section 4) calls that endpoint directly for
+baseline validation and drift stress-testing — no code in this repo
+provisions that endpoint, it's created manually in the Databricks UI.
+
+## Orchestration (Airflow)
+
+`dags/weather_pipeline_dag.py` is an Airflow DAG that triggers the two nightly
+Databricks jobs (`data_pipelines/10_ingest_nightly.ipynb`, then
+`11_features_nightly.ipynb`) in order, on a daily schedule, via
+`DatabricksRunNowOperator` — execution stays on Databricks; the DAG only
+owns scheduling/ordering/retries. See the docstring at the top of that file
+for the one-time setup (install `apache-airflow-providers-databricks`,
+create the `databricks_default` connection, create the two underlying
+Databricks Jobs, set their job IDs as Airflow Variables).
 
 ## Baseline Model
 
@@ -88,7 +120,7 @@ subsequent runs reuse the cache. Use `--refresh` to force a fresh pull.
 
 ## Getting Started
 
-`01_data_ingestion.ipynb` is a Databricks notebook. To run it:
+`00_data_ingestion.ipynb` is a Databricks notebook. To run it:
 
 1. Get a free NOAA CDO token: https://www.ncdc.noaa.gov/cdo-web/token
 2. Store it in a Databricks secret scope (never hardcode it in the notebook):

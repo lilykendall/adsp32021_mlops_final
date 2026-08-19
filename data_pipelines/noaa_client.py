@@ -1,6 +1,6 @@
 """NOAA CDO (Climate Data Online) GHCND client.
 
-Shared by the one-time historical backfill (``01_data_ingestion.ipynb``) and the
+Shared by the one-time historical backfill (``00_data_ingestion.ipynb``) and the
 nightly incremental ingest (``data_pipelines/10_ingest_nightly.ipynb``). Both paths
 write into the same bronze table, so they have to paginate, retry and reshape
 identically — if these helpers were duplicated and drifted, the two paths could

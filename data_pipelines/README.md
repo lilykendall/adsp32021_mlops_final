@@ -16,7 +16,7 @@ Anything that runs on a schedule lives here.
 
 - `noaa_client.py` — NOAA CDO GHCND fetch, pagination, retry/backoff, the catalogue
   lookups (`get_stations`, `get_datatypes`), and the long→wide reshape. Imported by both
-  `01_data_ingestion.ipynb` (backfill) and `10_ingest_nightly.ipynb` so the two paths
+  `00_data_ingestion.ipynb` (backfill) and `10_ingest_nightly.ipynb` so the two paths
   cannot drift apart.
 - `00_explore_noaa_catalog.ipynb` — read-only scratch notebook for choosing the station
   and the datatype contract. Measures how densely each datatype is actually populated
@@ -91,7 +91,7 @@ purposes; `01`'s behaviour is unchanged.
 
 ## Prerequisites
 
-`01_data_ingestion.ipynb` must have run at least once — the nightly job only does
+`00_data_ingestion.ipynb` must have run at least once — the nightly job only does
 incremental updates and will fail fast with a clear message if the bronze table
 doesn't exist yet.
 
@@ -110,6 +110,6 @@ task parameters. Suggested settings:
   enough to catch a hung request.
 - **Notifications:** on failure, so a silent nightly break doesn't go unnoticed.
 
-If the project needs Airflow in the picture for the deliverable, point a
-`DatabricksRunNowOperator` at this job rather than reimplementing the pull — the
-execution stays on Databricks and the DAG still exists.
+`dags/weather_pipeline_dag.py` (repo root) is that Airflow DAG — it points a
+`DatabricksRunNowOperator` at this job (then the `11_features_nightly` job)
+rather than reimplementing the pull, so execution stays on Databricks.

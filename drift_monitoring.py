@@ -36,10 +36,14 @@ nightly pipeline runs -- auto-detection stays correct without this script
 needing to be updated every time a column is added or dropped upstream.
 
 Status: reference data is real (the actual v3 training set, once exported).
-Current data is SYNTHETIC for now (see get_current_data() below) since
-there's no live API to pull from yet (blocked on Stage 3 / Noah's
-deployment). Swap that one function out once the API is live — everything
-else (report generation, thresholds, output) doesn't need to change.
+Current data here is SYNTHETIC by design (see get_current_data() below) --
+this script runs standalone, without Databricks credentials, so it samples
+and perturbs the reference set rather than calling a live endpoint. The
+live version -- real predictions from the actual deployed model
+(Databricks Model Serving; see 04_drift_simulation.ipynb Section 4) --
+already exists there, reusing run_drift_report()/print_summary() from this
+module. It isn't duplicated here since it needs a live endpoint + token
+this local script deliberately doesn't require.
 
 Usage:
     pip install evidently
@@ -105,15 +109,17 @@ def get_feature_columns(df):
 
 def get_current_data(reference_df, feature_columns, inject_drift=True):
     """
-    PLACEHOLDER. Once Noah's FastAPI service is live, replace this function's
-    body with an actual pull of recent live data run through the same v3
-    feature pipeline (11_features_nightly.ipynb), instead of sampling and
-    perturbing the reference set.
+    Synthetic by design, not a placeholder waiting on deployment -- this
+    script runs standalone without Databricks credentials, so it samples
+    from the reference data and optionally injects drift into a few
+    representative columns instead of calling a live endpoint. See
+    04_drift_simulation.ipynb Section 4 for the live version, which POSTs
+    real records to the deployed model and reuses run_drift_report()/
+    print_summary() from this module.
 
-    For now: samples from the reference data and optionally injects drift
-    into a few representative columns, matched by substring rather than
-    exact name -- v3's column list can shift as the nightly pipeline runs,
-    so this stays correct without needing hardcoded column names.
+    Columns are matched by substring rather than exact name -- v3's column
+    list can shift as the nightly pipeline runs, so this stays correct
+    without needing hardcoded column names.
     """
     sample = reference_df.sample(n=min(200, len(reference_df)), random_state=1).copy()
     if not inject_drift:
@@ -187,7 +193,8 @@ def main():
     print_summary(result)
 
     print(f"\nFull HTML report -> {DRIFT_REPORT_PATH}")
-    print("Done. Swap get_current_data() for a real live-data pull once the API is deployed.")
+    print("Done. For live predictions against the deployed model instead of a synthetic")
+    print("sample, see 04_drift_simulation.ipynb Section 4.")
 
 
 if __name__ == "__main__":

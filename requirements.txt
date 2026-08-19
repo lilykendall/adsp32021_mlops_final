@@ -1,0 +1,31 @@
+# Core -- used by the local scripts (train_baseline.py, test_ingestion_local.py) and
+# the shared client (data_pipelines/noaa_client.py), plus local EDA/dev work.
+pandas>=2.2
+numpy>=1.26
+requests>=2.31
+scikit-learn>=1.4
+matplotlib>=3.8
+
+# Drift monitoring (drift_monitoring.py)
+evidently>=0.4
+
+# Notebook tooling -- editing/validating the .ipynb files in this repo locally
+jupyter>=1.0
+nbformat>=5.10
+
+# Databricks-only notebooks (00_data_ingestion, 02_feature_store, 03_baseline_model,
+# 04_drift_simulation, 05_automl, data_pipelines/*.ipynb) run against the Databricks
+# cluster's own environment, which already provides these -- listed here so this file
+# documents the full project dependency set. Not required to run the local scripts above,
+# and installing pyspark locally does not give you `spark`/`dbutils` without Databricks
+# Connect or an actual cluster.
+pyspark>=3.5
+mlflow>=2.11
+databricks-feature-engineering>=0.6
+flaml>=2.1
+
+# Airflow orchestrator (dags/weather_pipeline_dag.py) runs on its own Airflow
+# instance, not in this project's dev environment -- listed here for the
+# dependency set this file documents, not something to install locally.
+# apache-airflow>=2.9
+# apache-airflow-providers-databricks>=6.0
